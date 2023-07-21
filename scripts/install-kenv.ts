@@ -1,6 +1,6 @@
 // Name: Install Kenv
 // Description: Moves the kenv to the ~/.kenv/kenvs folder and renames it if necessary
-// Input: None
+// Input: getSelectedFile
 // Output: Notification
 // Tags: util, helper, move kenv to kenvs folder
 // Author: Eduard Uffelmann
@@ -34,19 +34,20 @@ async function moveAndRenameDirectory(sourceDirectory, destinationDirectory) {
     }
 }
 
-let hasScriptsFolder = false;
 let kenvFolder = await getSelectedFile();
+// check if kenvFolder has a scripts folder inside
+let hasScriptsFolder = !(await isDir(path.join(kenvFolder, "scripts")));
 while (!hasScriptsFolder) {
-    // check if kenvFolder has a scripts folder inside
+    setHint(`There's no 'scripts' folder inside ${kenvFolder}`);
+    kenvFolder = await path({
+        startPath: await home("Downloads"),
+        onlyDirs: true,
+    });
     if (!(await isDir(path.join(kenvFolder, "scripts")))) {
-        setHint(`There's no 'scripts' folder inside ${kenvFolder}`);
-        kenvFolder = await path({
-            startPath: await home("Downloads"),
-            onlyDirs: true,
-        });
+        setHint("");
+        break;
     }
 }
-setHint("");
 
 let kenvFolderPath = path.parse(kenvFolder);
 let changedKenvName = await arg({
@@ -60,4 +61,5 @@ let destinationFolder =
         : await kenvPath("kenvs", kenvFolderPath.base);
 
 await moveAndRenameDirectory(kenvFolder, destinationFolder);
+
 notify(`Moved ${kenvFolder} to ~/.kenv/kenvs`);
