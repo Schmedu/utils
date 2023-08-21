@@ -53,7 +53,8 @@ let kenv = await arg(
             value: tool,
             // preview: `<img src="${BASE_URL}/img/kenvs/${tool.name}.png" class="" />`,
             preview: md(
-                `## Scripts
+                `# ${tool.name}: ${tool.description}                
+## Scripts
 ${tool.scriptNames.map((script) => `- ${script}`).join("\n")}`
             ),
         };
