@@ -36,9 +36,9 @@ export interface Kenv {
     scriptNames?: string[];
 }
 
-const CLIENT_SECRET = "L7J7yLVcZdJbAFcVMpVcJaXwdoNsxLdW3ez9LFASStE=";
+const CLIENT_SECRET = "L7J7yLVcZdJbAFcVMpVcJaXwdoNsxLdW3ez9LFASStE";
 
-const BASE_URL = "http://127.0.0.1:3007";
+const BASE_URL = "https://uffelmann.me";
 let toolsReq = await axios.get(
     `${BASE_URL}/api/client?secret=${CLIENT_SECRET}`
 );
