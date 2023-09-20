@@ -94,7 +94,12 @@ if (isPaidTool) {
                     placeholder: "Please Contact Me",
                     hint: `This instance got deactivated. Please run the script again to activate a new instance with your License Key.`,
                 },
-                [{ name: "Ok", value: true }]
+                [
+                    {
+                        name: "Ok",
+                        value: true,
+                    },
+                ]
             );
             exit();
         }
@@ -105,7 +110,10 @@ if (isPaidTool) {
             ignoreBlur: true,
             alwaysOnTop: true,
         });
-        const systemUser = os.userInfo().username;
+        let systemUser = os.userInfo().username;
+        if (systemUser.length < 3) {
+            systemUser += "Foo";
+        }
         try {
             let downloadLinkRequest = await axios.get(
                 `${BASE_URL}/api/client/${kenv.name}?secret=${CLIENT_SECRET}&licenseKey=${licenseKey}&instanceName=${systemUser}`
@@ -114,11 +122,12 @@ if (isPaidTool) {
             let instanceId = downloadLinkRequest.data.instanceId;
             await credentialsDB.set(kenv.name, { licenseKey, instanceId });
         } catch (err) {
-            let body = encodeURIComponent(`License Key: ${licenseKey}\n`);
+            console.log(err);
+            let body = encodeURIComponent(err);
             await arg(
                 {
                     placeholder: "Please Contact Me",
-                    hint: `You exceeded the activation limit. Please <a href="mailto:licenses@uffelmann.me?subject=DeactivatePreviousLicenseInstance&body=${body}" target="_blank">contact me</a> to deactivate an old instance.`,
+                    hint: `There was an error while downloading the Toolkit. Please <a href="mailto:debugging@uffelmann.me?subject=DownloadError&body=${body}" target="_blank">click here</a> to send me an email.`,
                 },
                 [{ name: "Ok", value: true }]
             );
@@ -151,6 +160,8 @@ await mkdir("-p", kenvFolder);
 const zip = new AdmZip(zipDownloadPath);
 zip.extractAllTo(kenvFolder, false);
 await rm(zipDownloadPath);
-await div(await md(`# Installed ${kenv.name}! 🎉
-Please allow notifications for ScriptKit. Many tools rely on them :-)`));
+await div({
+    html: md(`# Installed ${kenv.name}! ʕ•ᴥ•ʔ
+Please allow notifications for ScriptKit. Many tools rely on them :-)`)
+});
 notify(`${kenv.name} successfully installed!`);
