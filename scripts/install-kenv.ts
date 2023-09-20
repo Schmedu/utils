@@ -1,7 +1,7 @@
 // Name: Install Toolkit
 // Description: Install free and paid Toolkits from uffelmann.me
-// Input: getSelectedFile
-// Output: Notification
+// Input: None
+// Output: Installed Toolkit
 // Tags: util, helper, install toolkit, install kenv
 // Author: Eduard Uffelmann
 // Twitter: @schmedu_
@@ -162,6 +162,6 @@ zip.extractAllTo(kenvFolder, false);
 await rm(zipDownloadPath);
 await div({
     html: md(`# Installed ${kenv.name}!
-Please allow notifications for ScriptKit. Many tools rely on them :-)`)
+Please allow notifications for ScriptKit. Many tools rely on them :-)`),
 });
 notify(`${kenv.name} successfully installed!`);
