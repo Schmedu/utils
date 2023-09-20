@@ -161,7 +161,7 @@ const zip = new AdmZip(zipDownloadPath);
 zip.extractAllTo(kenvFolder, false);
 await rm(zipDownloadPath);
 await div({
-    html: md(`# Installed ${kenv.name}! ʕ•ᴥ•ʔ
+    html: md(`# Installed ${kenv.name}!
 Please allow notifications for ScriptKit. Many tools rely on them :-)`)
 });
 notify(`${kenv.name} successfully installed!`);
