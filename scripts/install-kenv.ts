@@ -1,18 +1,25 @@
 // Name: Install Toolkit
-// Description: Install free and paid Toolkits from uffelmann.me
+// Description: Install free and paid Toolkits from schmedu.com
 // Input: None
 // Output: Installed Toolkit
 // Tags: util, helper, install toolkit, install kenv
 // Author: Eduard Uffelmann
 // Twitter: @schmedu_
 // Linkedin: https://www.linkedin.com/in/euffelmann/
-// Website: https://uffelmann.me
+// Website: https://schmedu.com
 
 import "@johnlindquist/kit";
 import axios from "axios";
 import * as fs from "fs";
 import AdmZip from "adm-zip";
 import * as os from "os";
+import { createHash } from "crypto";
+
+function getHash(input: string, algorithm: string): string {
+    const hash = createHash(algorithm);
+    hash.update(input);
+    return hash.digest("hex");
+}
 
 async function downloadZipFile(url: string, outputPath: string): Promise<void> {
     try {
@@ -38,9 +45,9 @@ export interface Kenv {
 
 const CLIENT_SECRET = "L7J7yLVcZdJbAFcVMpVcJaXwdoNsxLdW3ez9LFASStE";
 
-const BASE_URL = "https://uffelmann.me";
+const BASE_URL = "https://schmedu.com";
 let toolsReq = await axios.get(
-    `${BASE_URL}/api/client?secret=${CLIENT_SECRET}`
+    `${BASE_URL}/api/client?secret=${encodeURIComponent(CLIENT_SECRET)}`
 );
 let tools = toolsReq.data.tools as Kenv[];
 
@@ -69,38 +76,66 @@ interface Credentials {
 }
 
 let downloadLink;
+let licenseKey = "";
+let instanceId = "";
+let credentialsDB = await store("LicenseKeys");
 if (isPaidTool) {
-    let licenseKey = "";
-    let instanceId = "";
-    let credentialsDB = await store("LicenseKeys");
     if (await credentialsDB.has(kenv.name)) {
+        // license was activated already
         let credentials = (await credentialsDB.get(kenv.name)) as Credentials;
         licenseKey = credentials.licenseKey;
         instanceId = credentials.instanceId;
 
         try {
             let downloadLinkRequest = await axios.get(
-                `${BASE_URL}/api/client/${kenv.name}?secret=${CLIENT_SECRET}&licenseKey=${licenseKey}&instanceId=${instanceId}`
+                `${BASE_URL}/api/client/${encodeURIComponent(
+                    kenv.name
+                )}?secret=${encodeURIComponent(
+                    CLIENT_SECRET
+                )}&licenseKey=${encodeURIComponent(
+                    licenseKey
+                )}&instanceId=${encodeURIComponent(instanceId)}`
             );
             downloadLink = downloadLinkRequest.data.url;
-            await credentialsDB.set(kenv.name, { licenseKey, instanceId });
+            // await credentialsDB.set(kenv.name, { licenseKey, instanceId });
         } catch (err) {
+            log(err);
             let body = encodeURIComponent(
-                `License Key: ${licenseKey}\nID: ${instanceId}`
+                err.message
             );
             await credentialsDB.delete(kenv.name);
-            await arg(
+            let sendReport = await arg(
                 {
-                    placeholder: "Please Contact Me",
-                    hint: `This instance got deactivated. Please run the script again to activate a new instance with your License Key.`,
+                    placeholder: "Error downloading the toolkit",
+                    hint: `There was an error while downloading the toolkit. Please send an error report so I can help you install it. Sorry for the inconvenience!`
                 },
                 [
                     {
-                        name: "Ok",
+                        name: "Send Error Report and get contacted",
+                        description: "You will only send the license key and your (hashed) instanceID and the error message. Nothing else. I will contact you via the email that you used for the purchase.",
                         value: true,
+                    },
+                    {
+                        name: "Ignore",
+                        value: false,
                     },
                 ]
             );
+            if (sendReport) {
+                await axios.post(
+                    `${BASE_URL}/api/client/${encodeURIComponent(
+                        kenv.name
+                    )}/error-reporting?secret=${encodeURIComponent(
+                        CLIENT_SECRET
+                    )}&licenseKey=${encodeURIComponent(
+                        licenseKey
+                    )}&instanceId=${encodeURIComponent(
+                        instanceId
+                    )}&error=${encodeURIComponent(
+                        "LicenseActiveErrorDownloading"
+                    )}&errorBody=${body}`
+                );
+            }
             exit();
         }
     } else {
@@ -110,35 +145,107 @@ if (isPaidTool) {
             ignoreBlur: true,
             alwaysOnTop: true,
         });
-        let systemUser = os.userInfo().username;
-        if (systemUser.length < 3) {
-            systemUser += "Foo";
-        }
-        try {
+        let instanceName = getHash(os.userInfo().username, "md5");
+
+        try { // try activating the license
             let downloadLinkRequest = await axios.get(
-                `${BASE_URL}/api/client/${kenv.name}?secret=${CLIENT_SECRET}&licenseKey=${licenseKey}&instanceName=${systemUser}`
+                `${BASE_URL}/api/client/${encodeURIComponent(
+                    kenv.name
+                )}?secret=${encodeURIComponent(
+                    CLIENT_SECRET
+                )}&licenseKey=${encodeURIComponent(
+                    licenseKey
+                )}&instanceName=${encodeURIComponent(instanceName)}`
             );
             downloadLink = downloadLinkRequest.data.url;
             let instanceId = downloadLinkRequest.data.instanceId;
             await credentialsDB.set(kenv.name, { licenseKey, instanceId });
         } catch (err) {
-            console.log(err);
-            let body = encodeURIComponent(err);
-            await arg(
+            log(err);
+            let body = encodeURIComponent(err.message);
+
+            let sendReport = await arg(
                 {
-                    placeholder: "Please Contact Me",
-                    hint: `There was an error while downloading the Toolkit. Please <a href="mailto:debugging@uffelmann.me?subject=DownloadError&body=${body}" target="_blank">click here</a> to send me an email.`,
+                    placeholder: "Error activating the License Key",
+                    hint: `There was an error while activating your license key. Please send an error report so I can help you install it. Sorry for the inconvenience!`
                 },
-                [{ name: "Ok", value: true }]
+                [
+                    {
+                        name: "Send error report and get contacted",
+                        description: "You will only send the license key and your (hashed) instanceName and the error message. Nothing else. I will contact you via the email that you used for the purchase.",
+                        value: true,
+                    },
+                    {
+                        name: "Ignore",
+                        value: false
+                    }
+                ]
             );
+
+            if (sendReport) {
+                await axios.post(
+                    `${BASE_URL}/api/client/${encodeURIComponent(
+                        kenv.name
+                    )}/error-reporting?secret=${encodeURIComponent(
+                        CLIENT_SECRET
+                    )}&licenseKey=${encodeURIComponent(
+                        licenseKey
+                    )}&instanceName=${encodeURIComponent(
+                        instanceName
+                    )}&error=${encodeURIComponent(
+                        "LicenseActivatingError"
+                    )}&errorBody=${body}`
+                );
+            }
             exit();
         }
     }
 } else {
-    let downloadLinkRequest = await axios.get(
-        `${BASE_URL}/api/client/${kenv.name}?secret=${CLIENT_SECRET}`
-    );
-    downloadLink = downloadLinkRequest.data.url;
+    try {
+        let downloadLinkRequest = await axios.get(
+            `${BASE_URL}/api/client/${encodeURIComponent(
+                kenv.name
+            )}?secret=${encodeURIComponent(CLIENT_SECRET)}`
+        );
+        downloadLink = downloadLinkRequest.data.url;
+    } catch (err) {
+        log(err);
+        let body = encodeURIComponent(err.message);
+
+        let sendReport = await arg(
+            {
+                placeholder: "Error downloading the toolkit",
+                hint: `There was an error while downloading the toolkit. Please send an error report so you can get some help to install it. Sorry for the inconvenience!`
+            },
+            [
+                {
+                    name: "Send error report and get contacted",
+                    description: "You will only send the error message and your email address.",
+                    value: true,
+                },
+                {
+                    name: "Ignore",
+                    value: false
+                }
+            ]
+        );
+
+        if (sendReport) {
+            let email = await arg("What is your email?")
+            await axios.post(
+                `${BASE_URL}/api/client/${encodeURIComponent(
+                    kenv.name
+                )}/error-reporting?secret=${encodeURIComponent(
+                    CLIENT_SECRET
+                )}&email=${encodeURIComponent(
+                    email
+                )}&error=${encodeURIComponent(
+                    "LicenseActivatingError"
+                )}&errorBody=${body}`
+            );
+        }
+        exit();
+    }
 }
 
 let zipDownloadPath = home("Downloads", `${kenv.name}.zip`);
@@ -153,13 +260,22 @@ if (await isDir(kenvFolder)) {
             { name: "Yes", value: true },
         ]
     );
-    if (!shouldOverwrite) exit();
+    if (!shouldOverwrite) {
+        await div({
+            html: md(`# ${kenv.name} already exists!
+Download canceled because it should not be replaced.`),
+        })
+        exit()
+    };
 }
 
 await mkdir("-p", kenvFolder);
 const zip = new AdmZip(zipDownloadPath);
 zip.extractAllTo(kenvFolder, false);
 await rm(zipDownloadPath);
+if (isPaidTool) { // save the credentials in the db
+    await credentialsDB.set(kenv.name, { licenseKey, instanceId });
+}
 await div({
     html: md(`# Installed ${kenv.name}!
 Please allow notifications for ScriptKit. Many tools rely on them :-)`),
