@@ -52,7 +52,10 @@ let toolsReq = await axios.get(
 let tools = toolsReq.data.tools as Kenv[];
 
 let kenv = await arg(
-    "Which kenv",
+    {
+        placeholder: "Which kenv",
+        ignoreBlur: true,
+    },
     tools.map((tool) => {
         return {
             name: tool.name,
@@ -78,7 +81,7 @@ interface Credentials {
 let downloadLink;
 let licenseKey = "";
 let instanceId = "";
-let credentialsDB = await store("LicenseKeys");
+let credentialsDB = await store("LicenseKeys", {});
 if (isPaidTool) {
     if (await credentialsDB.has(kenv.name)) {
         // license was activated already
@@ -107,7 +110,8 @@ if (isPaidTool) {
             let sendReport = await arg(
                 {
                     placeholder: "Error downloading the toolkit",
-                    hint: `There was an error while downloading the toolkit. Please send an error report so I can help you install it. Sorry for the inconvenience!`
+                    hint: `There was an error while downloading the toolkit. Please send an error report so I can help you install it. Sorry for the inconvenience!`,
+                    ignoreBlur: true,
                 },
                 [
                     {
